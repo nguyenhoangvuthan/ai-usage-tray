@@ -1,0 +1,15 @@
+[project]
+name = "ai-usage-tray"
+version = "0.1.0"
+description = "Theo dõi usage Claude Code và Codex trên system tray Linux"
+requires-python = ">=3.12"
+dependencies = ["PyQt6>=6.6,<7"]
+
+[dependency-groups]
+dev = ["ruff>=0.11"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
