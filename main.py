@@ -121,7 +121,7 @@ def run_gui(args) -> int:
     title = QLabel("AI Usage")
     title.setObjectName("title")
     layout.addWidget(title)
-    subtitle = QLabel("CLAUDE / CODEX     •     Quét cục bộ mỗi 5 giây")
+    subtitle = QLabel("CLAUDE / CODEX     •     Tự cập nhật qua mạng, không cần mở terminal")
     subtitle.setObjectName("muted")
     layout.addWidget(subtitle)
     columns = QHBoxLayout()
@@ -173,7 +173,7 @@ def run_gui(args) -> int:
         columns.addWidget(card, 1)
     note = QLabel(
         "Token chỉ tính log trên máy này, input đã bao gồm cache. "
-        "Claude và Codex đọc quota trực tiếp mỗi 5 giây (lùi lịch nếu máy chủ giới hạn). "
+        "Quota trực tiếp: Claude mỗi 60 giây, Codex mỗi 5 giây (lùi lịch khi bị giới hạn). "
         "Hạn mức chat trên web ChatGPT không nằm trong log Codex."
     )
     note.setWordWrap(True)
@@ -323,7 +323,7 @@ def run_gui(args) -> int:
                     else "Chưa có dữ liệu mới"
                 )
                 reset.setText(
-                    reset_text(w.get("resets_at"), now) if w else "Chờ snapshot từ phiên CLI"
+                    reset_text(w.get("resets_at"), now) if w else "Chờ quota từ máy chủ"
                 )
                 tooltip.append(
                     f"{label}: {pct:g}% đã dùng"

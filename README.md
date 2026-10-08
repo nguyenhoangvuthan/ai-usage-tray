@@ -1,6 +1,8 @@
 # AI Usage Tray
 
-Tiện ích Linux chạy nền ở system tray, đọc usage Claude Code và Codex **mỗi 5 giây**.
+Tiện ích Linux chạy nền ở system tray, tự cập nhật quota qua mạng **không cần mở
+terminal hay phiên chat**. Quota Claude lấy mỗi 60 giây, Codex mỗi 5 giây;
+giao diện và bộ đếm token cục bộ cập nhật mỗi 5 giây.
 Hai biểu tượng **CL** và **CX** hiển thị phần trăm hạn mức ngắn hạn đã dùng.
 Bấm biểu tượng để xem bảng chi tiết; chuột phải để quét ngay hoặc thoát.
 Đóng cửa sổ chỉ ẩn bảng, ứng dụng vẫn chạy nền.
@@ -139,10 +141,16 @@ uv run ruff check .
 
 Claude dùng hạn mức chung cho các giao diện Claude theo chính sách tài khoản;
 công cụ hiển thị quota tài khoản, không tách riêng usage web với CLI.
-**Quét 5 giây gồm đọc log token cục bộ và cập nhật quota Claude/Codex trực tiếp song song.**
+**Quét 5 giây gồm đọc log token cục bộ và kiểm tra lịch lấy quota trực tiếp song song.**
+Claude lấy quota mỗi 60 giây để giảm HTTP 429; Codex lấy mỗi 5 giây.
+Sau lỗi kết nối, cả hai tự thử lại với backoff tối đa 30 giây khi ứng dụng còn chạy.
 HTTP 429 tôn trọng thông tin chờ máy chủ cung cấp và backoff; lỗi mạng/auth giữ snapshot cũ kèm lỗi.
+Claude lưu thời gian chờ 429 qua lần khởi động lại; quét tay vẫn tôn trọng lịch này.
 Endpoint Claude được đối chiếu với Claude Code cài trên máy, không phải contract API công khai
-ổn định. Tool không tự refresh token: mở Claude Code để cập nhật đăng nhập khi cần.
+ổn định. Claude tự gia hạn bằng refresh token đã lưu khi access token sắp hết hạn
+(trước 5 phút), hoặc thử gia hạn một lần khi máy chủ trả HTTP 401. Không cần mở
+Claude Code để gia hạn. Cần đăng nhập lần đầu; nếu refresh token bị thu hồi/hết hạn
+hoặc máy chủ từ chối gia hạn thì vẫn cần đăng nhập lại.
 Giao diện hiện thời điểm nhận snapshot và đánh dấu dữ liệu cũ sau 2 phút.
 Khi qua giờ reset mà chưa có snapshot mới, giữ số gần nhất (kể cả **100%**) và ghi
 “chờ dữ liệu mới”; không giả định đã về 0%. Chế độ **% còn lại** vẫn hiển thị 0% khi đã dùng 100%.
@@ -188,12 +196,17 @@ user settings; kiểm tra cấu hình project nếu bridge chưa nhận dữ li�
 - Đọc log tăng dần; file đang ghi dở được đọc tiếp ở chu kỳ sau.
 - Cold start đọc toàn bộ log để lấy counter nền; các lượt sau đọc phần nối thêm.
 - Worker tách khỏi UI. Nếu lần quét mất hơn 5 giây, bỏ lượt chồng chéo.
-- Chỉ đọc `claudeAiOauth.accessToken` từ `CLAUDE_CONFIG_DIR/.credentials.json` để
-  gọi đúng endpoint Anthropic nói trên qua HTTPS; từ chối HTTP redirect.
+- Đọc `claudeAiOauth` từ `CLAUDE_CONFIG_DIR/.credentials.json` để gọi quota và
+  gia hạn tại `https://platform.claude.com/v1/oauth/token` qua HTTPS; từ chối redirect.
+- Token sau gia hạn được ghi nguyên tử vào chính file đăng nhập với quyền `0600`,
+  giữ metadata và credential khác. Dùng lock tương thích Claude Code để tránh
+  cùng xoay token; kiểm tra lại tài khoản trước khi ghi. Lock cũ sau crash được
+  xử lý theo ngưỡng 60 giây của Claude Code.
 - Không đọc cookie trình duyệt, không gửi hội thoại, không lưu/in token đăng nhập.
 - Bridge chỉ lưu `rate_limits` và timestamp, quyền file `0600`.
 - Cache API `claude-api-limits.json`, `codex-api-limits.json` và dấu alarm `reset-alarms.json` trong thư mục
   state cũng dùng quyền `0600`, chỉ chứa quota và thời điểm.
+- `claude-api-retry.json` chỉ lưu thời điểm được phép thử lại sau HTTP 429.
 - Tôn trọng `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `XDG_STATE_HOME`, `XDG_CONFIG_HOME`,
   `XDG_DATA_HOME`; các biến tùy chỉnh cần được truyền vào phiên desktop/autostart.
 - Log khi dùng systemd: `journalctl --user -u ai-usage-tray.service`.

@@ -208,7 +208,9 @@ class CodexUsageClient:
                 self.error = "Codex: đọc quota thành công nhưng không lưu được cache."
         except (OSError, ValueError, TypeError, AttributeError, KeyError, RpcError) as exc:
             self.failures += 1
-            delay = min(300, 5 * 2 ** min(self.failures, 6))
+            delay = min(30, 5 * 2 ** min(self.failures, 3))
+            if isinstance(exc, RpcError) and exc.auth_required:
+                delay = 60
             if isinstance(exc, RpcError) and exc.rate_limited:
                 delay = max(60, delay, exc.retry_after)
             self.next_poll = now + delay

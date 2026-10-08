@@ -56,11 +56,11 @@ class QuotaTests(unittest.TestCase):
         self.opener.open.side_effect = urllib.error.HTTPError(
             URL, 429, "", {"Retry-After": "120"}, None
         )
-        retained, error = self.client.poll(105)
+        retained, error = self.client.poll(160)
         self.assertEqual(retained, old)
         self.assertIn("429", error)
-        self.assertEqual(self.client.next_poll, 225)
-        self.client.poll(224)
+        self.assertEqual(self.client.next_poll, 280)
+        self.client.poll(279)
         self.assertEqual(self.opener.open.call_count, 2)
 
     def test_expired_credentials_and_malformed_json_are_not_zero(self):
