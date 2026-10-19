@@ -338,7 +338,7 @@ def run_gui(args) -> int:
                 tooltip.append(f"Biểu tượng: % {mode_label} · hạn mức {period_label}")
             t = details["tokens_today"]
             c["tokens"].setText(
-                f"TOKEN HÔM NAY   {compact(t['input'] + t['output'])}\n"
+                f"TOKEN HÔM NAY (MÁY NÀY)   {compact(t['input'] + t['output'])}\n"
                 f"Input {compact(t['input'])} · Output {compact(t['output'])}\n"
                 f"Cache đọc {compact(t['cache'])} (nằm trong input)"
             )
@@ -359,6 +359,10 @@ def run_gui(args) -> int:
                     if provider == "claude"
                     else "Chưa đọc được quota. Kiểm tra đăng nhập Codex CLI hoặc kết nối mạng."
                 )
+            error = details.get("quota_error")
+            if error:
+                c["source"].setText(error + "\n\n" + c["source"].text())
+                tooltip.append(error)
             trays[provider].setToolTip("\n".join(tooltip))
         status.setText(
             f"Quét lúc {datetime.fromtimestamp(data['scanned_at']):%H:%M:%S} · {data['files']} file log · chu kỳ 5 giây"

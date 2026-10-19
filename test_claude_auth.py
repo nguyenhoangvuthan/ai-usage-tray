@@ -290,6 +290,39 @@ class BackgroundQuotaTests(unittest.TestCase):
         second = collector.scan()
         self.assertEqual(second["providers"]["claude"]["limits"]["primary"]["used_percent"], 36)
 
+    def test_logged_out_claude_exposes_error_with_old_quota_and_recovers_after_login(self):
+        state = self.root / "collector-state"
+        state.mkdir()
+        (state / "claude-api-limits.json").write_text(json.dumps({
+            "observed_at": 100,
+            "rate_limits": {"five_hour": {"used_percentage": 82}},
+            "source": "Claude · quota trực tiếp",
+        }))
+        self.path.write_text(json.dumps({"claudeAiOauth": {
+            "accessToken": "", "refreshToken": "", "expiresAt": 0,
+        }}))
+        collector = Collector(self.root / "codex", self.home, state)
+        self.addCleanup(collector.close)
+        collector.claude_api.opener = self.opener
+        collector.codex_api.transport = Mock()
+        collector.codex_api.transport.read_limits.return_value = {
+            "rateLimits": {"primary": {"usedPercent": 17, "windowDurationMins": 300}},
+        }
+
+        first = collector.scan()["providers"]
+        self.assertIn("claude auth login", first["claude"].get("quota_error") or "")
+        self.assertEqual(first["claude"]["limits"]["observed_at"], 100)
+        self.assertEqual(first["claude"]["limits"]["primary"]["used_percent"], 82)
+        self.assertIsNone(first["codex"]["quota_error"])
+
+        self.path.write_text(json.dumps({"claudeAiOauth": {"accessToken": "new-login"}}))
+        collector.claude_api.next_poll = 0
+        self.opener.open.return_value = quota(21)
+        second = collector.scan()["providers"]["claude"]
+        self.assertIsNone(second["quota_error"])
+        self.assertEqual(second["limits"]["primary"]["used_percent"], 21)
+        self.assertGreater(second["limits"]["observed_at"], 100)
+
 
 if __name__ == "__main__":
     unittest.main()

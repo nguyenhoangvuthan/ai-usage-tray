@@ -265,7 +265,7 @@ class ClaudeUsageClient:
                     # Gia hạn sớm có thể lỗi trong khi bearer hiện tại còn dùng được.
             token = oauth.get("accessToken")
             if not token:
-                self.error = "Claude: cần đăng nhập Claude Code để đọc quota trực tiếp."
+                self.error = "Claude: chưa đăng nhập. Chạy `claude auth login` để kết nối lại quota."
                 return self.snapshot, self.error
             try:
                 data = self._usage(token)
@@ -285,7 +285,7 @@ class ClaudeUsageClient:
             except OSError:
                 self.error = "Claude: đọc quota thành công nhưng chưa lưu được cache."
         except FileNotFoundError:
-            self.error = "Claude: chưa có đăng nhập cục bộ; dùng statusLine nếu có."
+            self.error = "Claude: chưa có đăng nhập cục bộ. Chạy `claude auth login` để kết nối quota."
         except urllib.error.HTTPError as exc:
             self.failures += 1
             delay = min(900, 60 * 2 ** min(self.failures - 1, 4))
@@ -305,7 +305,10 @@ class ClaudeUsageClient:
                 except (ValueError, TypeError, AttributeError, OverflowError):
                     pass
             if exc.code in (400, 401, 403):
-                self.error = f"Claude HTTP {exc.code}: không gia hạn được phiên; cần đăng nhập lại Claude Code."
+                self.error = (
+                    f"Claude HTTP {exc.code}: không gia hạn được phiên; "
+                    "đăng nhập lại bằng `claude auth login`."
+                )
             else:
                 self.error = f"Claude HTTP {exc.code}; thử lại sau {int(delay)} giây."
             self.next_poll = now + delay

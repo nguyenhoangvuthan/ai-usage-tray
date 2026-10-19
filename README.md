@@ -152,6 +152,12 @@ Endpoint Claude được đối chiếu với Claude Code cài trên máy, khôn
 Claude Code để gia hạn. Cần đăng nhập lần đầu; nếu refresh token bị thu hồi/hết hạn
 hoặc máy chủ từ chối gia hạn thì vẫn cần đăng nhập lại.
 Giao diện hiện thời điểm nhận snapshot và đánh dấu dữ liệu cũ sau 2 phút.
+Nếu không đồng bộ được, lý do hiện ngay trong ô nhà cung cấp và tooltip ở khay.
+Khi Claude báo chưa đăng nhập, chạy `claude auth status` để kiểm tra và
+`claude auth login` để kết nối lại; ứng dụng tự đọc đăng nhập mới ở lần lấy quota
+kế tiếp (thường trong 60 giây, trừ khi đang chờ giới hạn máy chủ).
+Đăng nhập Claude trên trình duyệt không thay thế đăng nhập Claude Code cục bộ.
+“Token hôm nay (máy này)” có thể bằng 0 dù đã dùng Claude trên web.
 Khi qua giờ reset mà chưa có snapshot mới, giữ số gần nhất (kể cả **100%**) và ghi
 “chờ dữ liệu mới”; không giả định đã về 0%. Chế độ **% còn lại** vẫn hiển thị 0% khi đã dùng 100%.
 

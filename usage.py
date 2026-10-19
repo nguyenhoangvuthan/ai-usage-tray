@@ -212,13 +212,16 @@ class Collector:
         except (OSError, ValueError):
             self.errors.append("Không đọc được snapshot hạn mức Claude")
         remote = codex_remote = None
+        quota_errors = {"claude": None, "codex": None}
         if self.online:
             claude_future = self.api_pool.submit(self.claude_api.poll)
             codex_future = self.api_pool.submit(self.codex_api.poll)
             remote, error = claude_future.result()
+            quota_errors["claude"] = error
             if error:
                 self.errors.append(error)
             codex_remote, error = codex_future.result()
+            quota_errors["codex"] = error
             if error:
                 self.errors.append(error)
         if codex_remote is not None:
@@ -263,6 +266,7 @@ class Collector:
             result["providers"][provider] = {
                 "tokens_today": totals,
                 "limits": self.limits.get(provider),
+                "quota_error": quota_errors[provider],
                 "last_event": self.last_event.get(provider),
             }
         return result
