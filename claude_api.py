@@ -1,8 +1,11 @@
 """Đọc quota và gia hạn OAuth nền theo giao thức Claude Code; không gửi prompt."""
 
+import http.client
 import json
 import math
 import os
+import socket
+import ssl
 import tempfile
 import threading
 import time
@@ -24,7 +27,7 @@ POLL_SECONDS = 60
 def refresh_lock(home: Path):
     # proper-lockfile của Claude Code dùng mkdir, cả đường dẫn mới và legacy.
     # CLI heartbeat mỗi 5s; dùng cùng ngưỡng stale 60s để phục hồi sau crash.
-    # Request có timeout 4s < stale 60s của CLI.
+    # Timeout 4s mỗi địa chỉ; heartbeat giữ lock cả khi phải thử địa chỉ khác.
     acquired = []
     stopped = threading.Event()
     heartbeat = None
@@ -167,6 +170,45 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+class AddressFallbackHTTPSConnection(http.client.HTTPSConnection):
+    def connect(self):
+        # Proxy CONNECT giữ transport chuẩn; chỉ chọn địa chỉ cho kết nối trực tiếp.
+        if self._tunnel_host:
+            return super().connect()
+        addresses = socket.getaddrinfo(self.host, self.port, type=socket.SOCK_STREAM)
+        create_connection = self._create_connection
+        try:
+            for index, (_, _, _, _, address) in enumerate(addresses):
+                host = socket.getnameinfo(address, socket.NI_NUMERICHOST)[0]
+                # Chỉ thay socket factory của connection này, không đổi DNS toàn app.
+                # Giữ self.host để TLS vẫn kiểm tra hostname/SNI của endpoint gốc.
+                self._create_connection = lambda target, timeout, source: create_connection(
+                    (host, self.port), timeout, source
+                )
+                try:
+                    super().connect()
+                    return
+                except ssl.SSLCertVerificationError:
+                    self.close()
+                    raise
+                except OSError:
+                    # close() còn reset trạng thái HTTP của request đang gửi.
+                    # Chỉ đóng socket lỗi để request tiếp tục sau khi nối lại.
+                    if self.sock is not None:
+                        self.sock.close()
+                        self.sock = None
+                    if index == len(addresses) - 1:
+                        raise
+            raise OSError("Không tìm thấy địa chỉ máy chủ Claude")
+        finally:
+            self._create_connection = create_connection
+
+
+class AddressFallbackHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, request):
+        return self.do_open(AddressFallbackHTTPSConnection, request, context=self._context)
+
+
 def normalize(data: dict, now: float) -> dict:
     if not isinstance(data, dict) or not any(k in data for k in ("five_hour", "seven_day")):
         raise ValueError("Không có trường quota")
@@ -197,7 +239,7 @@ class ClaudeUsageClient:
         self.home = home
         self.cache_path = state / "claude-api-limits.json"
         self.retry_path = state / "claude-api-retry.json"
-        self.opener = opener or urllib.request.build_opener(NoRedirect)
+        self.opener = opener or urllib.request.build_opener(NoRedirect, AddressFallbackHTTPSHandler)
         self.snapshot = None
         self.next_poll = 0.0
         self.failures = 0

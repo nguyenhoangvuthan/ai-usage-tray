@@ -144,6 +144,10 @@ công cụ hiển thị quota tài khoản, không tách riêng usage web với 
 **Quét 5 giây gồm đọc log token cục bộ và kiểm tra lịch lấy quota trực tiếp song song.**
 Claude lấy quota mỗi 60 giây để giảm HTTP 429; Codex lấy mỗi 5 giây.
 Sau lỗi kết nối, cả hai tự thử lại với backoff tối đa 30 giây khi ứng dụng còn chạy.
+Kết nối HTTPS trực tiếp tới Claude thử địa chỉ DNS tiếp theo nếu TCP/TLS gặp lỗi,
+kể cả trường hợp IPv6 kết nối được TCP nhưng treo ở bước TLS; IPv4 có thể tiếp tục
+lấy quota và gia hạn token. Vẫn xác minh chứng chỉ/hostname, không thử lại khi
+chứng chỉ không hợp lệ và không đổi cấu hình IPv6 của hệ thống.
 HTTP 429 tôn trọng thông tin chờ máy chủ cung cấp và backoff; lỗi mạng/auth giữ snapshot cũ kèm lỗi.
 Claude lưu thời gian chờ 429 qua lần khởi động lại; quét tay vẫn tôn trọng lịch này.
 Endpoint Claude được đối chiếu với Claude Code cài trên máy, không phải contract API công khai
